@@ -1,0 +1,35 @@
+# FastAPI and server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.25
+alembic==1.13.1
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# CORS and middleware
+python-dotenv==1.0.0
+
+# AI/ML for RAG implementation
+sentence-transformers==2.3.1
+chromadb==0.4.22
+requests==2.31.0
+
+# File processing
+PyMuPDF==1.23.8  # PDF processing
+pandas==2.1.4  # CSV/Excel processing
+openpyxl==3.1.2  # Excel support
+pytesseract==0.3.10  # OCR for images
+Pillow==10.1.0  # Image processing
+python-multipart==0.0.6  # File upload support
+
+# Future dependencies (placeholders)
+# openai==1.10.0
+# langchain==0.1.0
+# pypdf==3.17.4

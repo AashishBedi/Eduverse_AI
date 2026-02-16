@@ -1,0 +1,5 @@
+Database file exists: True
+Database size: 73728 bytes
+Tables: ['users', 'documents', 'timetables', 'courses']
+Timetable entries: 16
+Teacher UIDs: ['UNKNOWN']
