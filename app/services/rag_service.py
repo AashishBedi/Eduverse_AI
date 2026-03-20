@@ -7,7 +7,6 @@ Implements document embedding, retrieval, and generation using:
 """
 
 import os
-import requests
 import logging
 import time
 from datetime import datetime
@@ -15,6 +14,7 @@ from typing import List, Dict, Any, Optional
 from sentence_transformers import SentenceTransformer
 import chromadb
 from chromadb.config import Settings
+from groq import Groq
 from app.config import settings
 from app.utils.evaluation import evaluation_logger
 
@@ -29,20 +29,15 @@ class RAGService:
     """
     
     def __init__(self, embedding_model_name: Optional[str] = None, llm_model_name: Optional[str] = None):
-        """Initialize RAG service with embedding model and vector store
-        
-        Args:
-            embedding_model_name: Override default embedding model
-            llm_model_name: Override default LLM model
-        """
         self.embedding_model = None
         self.chroma_client = None
         self.collection = None
         self._initialized = False
-        
-        # Allow model swapping for evaluation
+        self._groq_client = None
+
         self.embedding_model_name = embedding_model_name or settings.EMBEDDING_MODEL
-        self.llm_model_name = llm_model_name or settings.OLLAMA_MODEL
+        # Default Groq model — fast and accurate
+        self.llm_model_name = llm_model_name or getattr(settings, 'GROQ_MODEL', 'llama3-8b-8192')
     
     def initialize(self):
         """
@@ -197,43 +192,33 @@ class RAGService:
             "after_filtering": len(retrieved_docs)
         }
     
-    def generate_with_ollama(self, prompt: str) -> str:
+    def generate_with_groq(self, prompt: str) -> str:
         """
-        Generate response using Ollama API
-        
-        Args:
-            prompt: Complete prompt with context
-            
-        Returns:
-            Generated response text
+        Generate a response using the Groq API (llama3-8b-8192 by default).
         """
-        url = f"{settings.OLLAMA_BASE_URL}/api/generate"
-        
-        payload = {
-            "model": self.llm_model_name,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.3,  # Lower temperature for more factual responses
-                "top_p": 0.9,
-                "num_predict": 512
-            }
-        }
-        
+        if self._groq_client is None:
+            api_key = getattr(settings, 'GROQ_API_KEY', None)
+            if not api_key:
+                raise Exception("GROQ_API_KEY is not set in the environment.")
+            self._groq_client = Groq(api_key=api_key)
+
         try:
-            response = requests.post(
-                url,
-                json=payload,
-                timeout=settings.OLLAMA_TIMEOUT
+            chat_completion = self._groq_client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an educational AI assistant. Answer questions strictly based on the provided context documents. If the context does not contain the answer, say so directly.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                model=self.llm_model_name,
+                temperature=0.3,
+                max_tokens=1024,
             )
-            response.raise_for_status()
-            
-            result = response.json()
-            return result.get("response", "").strip()
-            
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Ollama API error: {e}")
-            raise Exception(f"Failed to generate response from Ollama: {str(e)}")
+            return chat_completion.choices[0].message.content.strip()
+        except Exception as e:
+            logger.error(f"Groq API error: {e}")
+            raise Exception(f"Failed to generate response from Groq: {str(e)}")
     
     def build_rag_prompt(self, query: str, context_docs: List[Dict[str, Any]]) -> str:
         """
@@ -366,7 +351,7 @@ class RAGService:
         # Step 4: Generate answer
         logger.info("🤖 Generating answer with Ollama...")
         generation_start = time.time()
-        answer = self.generate_with_ollama(prompt)
+        answer = self.generate_with_groq(prompt)
         generation_latency = time.time() - generation_start
         logger.info("   ✅ Answer generated")
         

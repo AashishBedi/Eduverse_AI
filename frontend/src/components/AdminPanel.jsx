@@ -9,7 +9,7 @@ const CATEGORIES = [
     { value: 'fees', label: 'Fees' },
 ];
 
-const AdminPanel = () => {
+const AdminPanel = ({ token = '', adminName = 'Admin', onLogout }) => {
     // File Upload State
     const [fileUpload, setFileUpload] = useState({
         file: null,
@@ -56,6 +56,9 @@ const AdminPanel = () => {
 
             const response = await fetch('http://localhost:8000/api/upload/upload', {
                 method: 'POST',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                },
                 body: formData,
             });
 
@@ -181,7 +184,15 @@ const AdminPanel = () => {
         <div className="admin-panel">
             <div className="admin-container">
                 <header className="admin-header">
-                    <h1>📚 Admin Content Management</h1>
+                    <div className="admin-header-top">
+                        <h1>📚 Admin Content Management</h1>
+                        <div className="admin-user-bar">
+                            <span className="admin-user-name">👤 {adminName}</span>
+                            <button className="admin-logout-btn" onClick={onLogout}>
+                                🚪 Logout
+                            </button>
+                        </div>
+                    </div>
                     <p>Upload files or add text content to the EduVerse knowledge base</p>
                 </header>
 

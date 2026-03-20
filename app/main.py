@@ -20,7 +20,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=settings.get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,36 +41,34 @@ app.include_router(fees.router, prefix="/api/fees", tags=["Fees"])
 
 @app.on_event("startup")
 async def startup_event():
-    """
-    Application startup event handler
-    Initialize connections, load models, etc.
-    """
     print("🚀 EduVerse AI Backend starting up...")
-    
-    # Initialize database and create tables
-    from app.db.init_db import init_database
-    init_database()
-    
-    # TODO: Load AI models
-    # TODO: Initialize vector store
+
+    # 1. Init database tables
+    try:
+        from app.db.init_db import init_database
+        init_database()
+    except Exception as e:
+        print(f"⚠️  Database init warning: {e}")
+
+    # 2. Seed default admin (non-fatal — server still starts if this fails)
+    try:
+        from app.db.database import SessionLocal
+        from app.services.auth_service import get_or_create_default_admin
+        with SessionLocal() as db:
+            get_or_create_default_admin(db)
+    except Exception as e:
+        print(f"⚠️  Admin seed warning: {e}")
+        print("   → Server is running. Log in manually or check ADMIN_DEFAULT_PASSWORD in .env")
+
+    print("✅ EduVerse AI is ready → http://127.0.0.1:8000/docs")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """
-    Application shutdown event handler
-    Clean up resources
-    """
     print("🛑 EduVerse AI Backend shutting down...")
-    # TODO: Close database connections
-    # TODO: Clean up resources
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+

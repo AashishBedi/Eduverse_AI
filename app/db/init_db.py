@@ -9,6 +9,7 @@ from app.models.document import Document
 from app.models.timetable import Timetable
 from app.models.admission import Admission
 from app.models.fee import Fee
+from sqlalchemy import inspect, text
 
 
 def init_database():
@@ -23,6 +24,23 @@ def init_database():
     
     # Create all tables
     Base.metadata.create_all(bind=engine)
+
+    # Safe migration: add security question columns if missing (existing DBs)
+    try:
+        inspector = inspect(engine)
+        existing_cols = [c['name'] for c in inspector.get_columns('users')]
+        new_cols = {
+            'security_question': 'TEXT',
+            'security_answer_hash': 'TEXT',
+        }
+        with engine.connect() as conn:
+            for col, col_type in new_cols.items():
+                if col not in existing_cols:
+                    conn.execute(text(f'ALTER TABLE users ADD COLUMN {col} {col_type}'))
+                    conn.commit()
+                    print(f"   ✅ Added column: users.{col}")
+    except Exception as e:
+        print(f"   ⚠️  Column migration skipped: {e}")
     
     print("✅ Database initialized successfully!")
     print(f"   - Created tables: {', '.join(Base.metadata.tables.keys())}")

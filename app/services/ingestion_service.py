@@ -13,8 +13,14 @@ from pathlib import Path
 # File processing imports
 import fitz  # PyMuPDF
 import pandas as pd
-from PIL import Image
-import pytesseract
+
+# Optional OCR support — requires Tesseract binary to be installed
+try:
+    from PIL import Image
+    import pytesseract
+    OCR_AVAILABLE = True
+except (ImportError, Exception):
+    OCR_AVAILABLE = False
 
 # Database and services
 from sqlalchemy.orm import Session

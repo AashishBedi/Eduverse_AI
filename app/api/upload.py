@@ -9,6 +9,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from app.services.ingestion_service import ingestion_service
 from app.db.database import get_db
+from app.utils.dependencies import get_current_admin
 import io
 import pandas as pd
 
@@ -21,7 +22,8 @@ async def upload_file(
     category: str = Form(...),
     department: str = Form(...),
     academic_year: str = Form(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),  # 🔒 Requires valid admin JWT
 ):
     """
     Upload and process file based on category

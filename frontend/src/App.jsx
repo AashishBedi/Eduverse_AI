@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import "./App.css";
 import AdminPanel from "./components/AdminPanel";
+import AdminLogin from "./components/AdminLogin";
 
 function App() {
   const [mode, setMode] = useState("general");
@@ -8,6 +9,9 @@ function App() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [adminToken, setAdminToken] = useState(() => localStorage.getItem('adminToken') || '');
+  const [adminName, setAdminName]   = useState(() => localStorage.getItem('adminName')  || '');
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -199,14 +203,38 @@ function App() {
   return (
     <div className="app">
       {showAdmin ? (
-        <AdminPanel />
+        <AdminPanel
+          token={adminToken}
+          adminName={adminName}
+          onLogout={() => {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminName');
+            setAdminToken('');
+            setAdminName('');
+            setShowAdmin(false);
+          }}
+        />
       ) : (
         <>
           {/* Animated Background */}
           <div className="background-animation">
+            {/* Soft aurora orbs */}
             <div className="gradient-orb orb-1"></div>
             <div className="gradient-orb orb-2"></div>
             <div className="gradient-orb orb-3"></div>
+
+            {/* Floating geometric tiles */}
+            <div className="tile tile-1"></div>
+            <div className="tile tile-2"></div>
+            <div className="tile tile-3"></div>
+            <div className="tile tile-4"></div>
+            <div className="tile tile-5"></div>
+            <div className="tile tile-6"></div>
+            <div className="tile tile-7"></div>
+            <div className="tile tile-8"></div>
+
+            {/* Grid overlay */}
+            <div className="grid-overlay"></div>
           </div>
 
           <div className="container">
@@ -229,7 +257,6 @@ function App() {
                     value={mode}
                     onChange={(e) => setMode(e.target.value)}
                     className="mode-select"
-                    style={{ background: getModeColor(mode) }}
                   >
                     <option value="general">💡 General</option>
                     <option value="admissions">🎓 Admissions</option>
@@ -246,7 +273,7 @@ function App() {
               {messages.length === 0 ? (
                 <div className="welcome-screen">
                   <div className="welcome-icon">✨</div>
-                  <h2 className="welcome-title">Welcome to EduVerse AI!</h2>
+                  <h2 className="welcome-title">Welcome to EduVerse AI</h2>
                   <p className="welcome-text">
                     Ask me anything about admissions, timetables, fees, regulations, or general academic queries.
                   </p>
@@ -331,8 +358,14 @@ function App() {
             </div>
 
             {/* Admin Toggle Button */}
-            <button className="admin-toggle" onClick={() => setShowAdmin(true)}>
-              📚 Admin Panel
+            <button className="admin-toggle" onClick={() => {
+              if (adminToken) {
+                setShowAdmin(true);
+              } else {
+                setShowLogin(true);
+              }
+            }}>
+              🛡️ Admin Panel
             </button>
           </div>
         </>
@@ -343,6 +376,17 @@ function App() {
         <button className="back-to-chat" onClick={() => setShowAdmin(false)}>
           ← Back to Chat
         </button>
+      )}
+      {/* Admin Login modal */}
+      {showLogin && (
+        <AdminLogin
+          onSuccess={(token, name) => {
+            setAdminToken(token);
+            setAdminName(name);
+            setShowLogin(false);
+            setShowAdmin(true);
+          }}
+        />
       )}
     </div>
   );
