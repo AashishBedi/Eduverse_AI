@@ -5,7 +5,7 @@ const BASE = 'http://localhost:8000/api/auth';
 
 const VIEWS = { LOGIN: 'login', FORGOT: 'forgot', VERIFY: 'verify', RESET: 'reset', SETUP_Q: 'setup_q' };
 
-const AdminLogin = ({ onSuccess }) => {
+const AdminLogin = ({ onSuccess, onClose }) => {
   const [view, setView]           = useState(VIEWS.LOGIN);
   const [email, setEmail]         = useState('');
   const [password, setPassword]   = useState('');
@@ -108,6 +108,14 @@ const AdminLogin = ({ onSuccess }) => {
       <div className="admin-login-card">
         {/* Header */}
         <div className="admin-login-header">
+          {onClose && (
+            <button
+              type="button"
+              className="admin-login-close"
+              onClick={onClose}
+              aria-label="Close login dialog"
+            >✕</button>
+          )}
           <div className="admin-login-icon">🛡️</div>
           <h1 className="admin-login-title">Admin Access</h1>
           <p className="admin-login-subtitle">

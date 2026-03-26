@@ -66,10 +66,15 @@ const AdminPanel = ({ token = '', adminName = 'Admin', onLogout }) => {
 
             // Check if response indicates failure
             if (!response.ok || data.success === false) {
+                // Normalise: FastAPI 401/422/etc use `detail`, our custom errors use `message`
+                const errorPayload = {
+                    ...data,
+                    message: data.message || data.detail || `Upload failed (HTTP ${response.status})`,
+                };
                 setFileUpload({
                     ...fileUpload,
                     loading: false,
-                    error: data,
+                    error: errorPayload,
                 });
                 return;
             }
@@ -88,7 +93,7 @@ const AdminPanel = ({ token = '', adminName = 'Admin', onLogout }) => {
             setFileUpload({
                 ...fileUpload,
                 loading: false,
-                error: { message: error.message },
+                error: { message: error.message || 'Network error – is the backend running?' },
             });
         }
     };

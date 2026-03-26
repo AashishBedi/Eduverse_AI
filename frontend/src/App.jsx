@@ -358,9 +358,29 @@ function App() {
             </div>
 
             {/* Admin Toggle Button */}
-            <button className="admin-toggle" onClick={() => {
+            <button className="admin-toggle" onClick={async () => {
               if (adminToken) {
-                setShowAdmin(true);
+                // Verify the stored token is still valid before entering admin panel
+                try {
+                  const res = await fetch('http://localhost:8000/api/auth/verify-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: adminToken }),
+                  });
+                  if (res.ok) {
+                    setShowAdmin(true);
+                  } else {
+                    // Token expired or invalid – clear it and show login
+                    localStorage.removeItem('adminToken');
+                    localStorage.removeItem('adminName');
+                    setAdminToken('');
+                    setAdminName('');
+                    setShowLogin(true);
+                  }
+                } catch {
+                  // Network error – still try to open, let the upload fail with a message
+                  setShowAdmin(true);
+                }
               } else {
                 setShowLogin(true);
               }
@@ -386,6 +406,7 @@ function App() {
             setShowLogin(false);
             setShowAdmin(true);
           }}
+          onClose={() => setShowLogin(false)}
         />
       )}
     </div>
