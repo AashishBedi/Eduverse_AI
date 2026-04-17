@@ -2,6 +2,14 @@
 Template download endpoint for timetable Excel file
 """
 
+import io
+import pandas as pd
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+
+router = APIRouter()
+
+
 @router.get("/download-template")
 async def download_timetable_template():
     """

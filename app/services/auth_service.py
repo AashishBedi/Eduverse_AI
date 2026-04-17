@@ -21,12 +21,17 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # ──────────────────────────────────────────────
 # Password helpers
 # ──────────────────────────────────────────────
+def _truncate(plain: str) -> str:
+    """Bcrypt hard-limit: passwords must not exceed 72 bytes."""
+    return plain.encode("utf-8")[:72].decode("utf-8", errors="ignore")
+
+
 def hash_password(plain: str) -> str:
-    return pwd_context.hash(plain)
+    return pwd_context.hash(_truncate(plain))
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return pwd_context.verify(_truncate(plain), hashed)
 
 
 # ──────────────────────────────────────────────

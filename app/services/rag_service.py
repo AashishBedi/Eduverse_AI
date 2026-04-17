@@ -26,7 +26,17 @@ logging.basicConfig(level=logging.INFO)
 class RAGService:
     """
     RAG service for document retrieval and AI-powered question answering
+    with intelligent model fallback
     """
+    
+    # Ordered list of models to try (most stable first)
+    # These are carefully selected for long-term availability
+    AVAILABLE_MODELS = [
+        "llama-3.1-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "llama-2-70b-4096",
+    ]
     
     def __init__(self, embedding_model_name: Optional[str] = None, llm_model_name: Optional[str] = None):
         self.embedding_model = None
@@ -34,10 +44,12 @@ class RAGService:
         self.collection = None
         self._initialized = False
         self._groq_client = None
+        self._working_model = None
 
         self.embedding_model_name = embedding_model_name or settings.EMBEDDING_MODEL
-        # Default Groq model — fast and accurate
-        self.llm_model_name = llm_model_name or getattr(settings, 'GROQ_MODEL', 'llama3-8b-8192')
+        # Set primary model, but will try fallbacks if it fails
+        self.primary_model = llm_model_name or getattr(settings, 'GROQ_MODEL', 'llama-3.1-70b-versatile')
+        self.llm_model_name = self.primary_model
     
     def initialize(self):
         """
@@ -194,14 +206,56 @@ class RAGService:
     
     def generate_with_groq(self, prompt: str) -> str:
         """
-        Generate a response using the Groq API (llama3-8b-8192 by default).
+        Generate a response using the Groq API with intelligent fallback.
+        Tries multiple models to ensure availability.
         """
         if self._groq_client is None:
             api_key = getattr(settings, 'GROQ_API_KEY', None)
             if not api_key:
-                raise Exception("GROQ_API_KEY is not set in the environment.")
+                logger.error("GROQ_API_KEY is not set")
+                return "⚠️ Groq API key not configured. Please set GROQ_API_KEY in .env file."
             self._groq_client = Groq(api_key=api_key)
 
+        # If we have a working model, use it
+        if self._working_model:
+            try:
+                return self._generate_with_model(prompt, self._working_model)
+            except Exception as e:
+                logger.warning(f"Previously working model {self._working_model} failed, trying fallbacks")
+                self._working_model = None
+        
+        # Try each model in order
+        models_to_try = [self.primary_model] + [m for m in self.AVAILABLE_MODELS if m != self.primary_model]
+        last_error = None
+        
+        for model in models_to_try:
+            logger.info(f"   Attempting with model: {model}")
+            try:
+                result = self._generate_with_model(prompt, model)
+                # Check if result is an error message
+                if result.startswith("⚠️"):
+                    last_error = result
+                    logger.warning(f"   Model {model} returned error: {result}")
+                    continue
+                # Success!
+                self._working_model = model
+                logger.info(f"   ✅ Successfully using model: {model}")
+                return result
+            except Exception as e:
+                last_error = str(e)
+                logger.warning(f"   Model {model} failed: {str(e)[:100]}")
+                continue
+        
+        # All models failed - return last error or generic message
+        logger.error(f"All Groq models failed. Last error: {last_error}")
+        return "⚠️ AI service temporarily unavailable. Please try again or contact your instructor."
+    
+    def _generate_with_model(self, prompt: str, model: str) -> str:
+        """
+        Attempt to generate response with a specific model.
+        Returns error message (starting with ⚠️) if model is unavailable.
+        Raises exception for other errors.
+        """
         try:
             chat_completion = self._groq_client.chat.completions.create(
                 messages=[
@@ -211,14 +265,19 @@ class RAGService:
                     },
                     {"role": "user", "content": prompt},
                 ],
-                model=self.llm_model_name,
+                model=model,
                 temperature=0.3,
                 max_tokens=1024,
             )
             return chat_completion.choices[0].message.content.strip()
         except Exception as e:
-            logger.error(f"Groq API error: {e}")
-            raise Exception(f"Failed to generate response from Groq: {str(e)}")
+            error_str = str(e).lower()
+            # Check if model is decommissioned/unavailable
+            if any(keyword in error_str for keyword in ["decommissioned", "deprecated", "not supported", "does not exist", "invalid"]):
+                logger.error(f"Model {model} unavailable: {str(e)[:100]}")
+                return f"⚠️ Model {model} is no longer available"
+            # For other errors, raise so we can try next model
+            raise
     
     def build_rag_prompt(self, query: str, context_docs: List[Dict[str, Any]]) -> str:
         """
@@ -348,10 +407,14 @@ class RAGService:
         # Step 3: Build prompt
         prompt = self.build_rag_prompt(question, context_docs)
         
-        # Step 4: Generate answer
-        logger.info("🤖 Generating answer with Ollama...")
+        # Step 4: Generate answer with error handling
+        logger.info("🤖 Generating answer with Groq...")
         generation_start = time.time()
-        answer = self.generate_with_groq(prompt)
+        try:
+            answer = self.generate_with_groq(prompt)
+        except Exception as e:
+            logger.error(f"Answer generation failed: {e}")
+            answer = "⚠️ Unable to generate answer. Please check your Groq API key and model configuration."
         generation_latency = time.time() - generation_start
         logger.info("   ✅ Answer generated")
         

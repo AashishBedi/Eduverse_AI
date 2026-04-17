@@ -5,6 +5,7 @@ Admin file upload with category-aware processing
 
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, status
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.services.ingestion_service import ingestion_service
@@ -242,12 +243,19 @@ async def get_supported_formats():
     }
 
 
+
+
+class TextIngestionRequest(BaseModel):
+    """Request model for text ingestion"""
+    content: str
+    category: str
+    department: str = ""
+    academic_year: str = ""
+
+
 @router.post("/text")
 async def ingest_text(
-    content: str = Form(...),
-    category: str = Form(...),
-    department: str = Form(""),
-    academic_year: str = Form(""),
+    request: TextIngestionRequest,
     db: Session = Depends(get_db)
 ):
     """
@@ -268,13 +276,22 @@ async def ingest_text(
     3. Generate embeddings using BAAI/bge-base-en-v1.5
     4. Store in ChromaDB for RAG retrieval
     
-    **Form Data:**
-    - `content`: Text content to ingest
-    - `category`: Document category (regulations, admissions, general, fees)
-    - `department`: Academic department (optional)
-    - `academic_year`: Academic year (optional)
+    **JSON Body:**
+    ```json
+    {
+        "content": "Your text content...",
+        "category": "regulations",
+        "department": "Computer Science",
+        "academic_year": "2024-2025"
+    }
+    ```
     """
     try:
+        content = request.content
+        category = request.category
+        department = request.department or ""
+        academic_year = request.academic_year or ""
+        
         # Validate content
         if not content or not content.strip():
             raise HTTPException(

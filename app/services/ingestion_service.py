@@ -761,6 +761,7 @@ class IngestionService:
         base_metadata = {
             "filename": filename,
             "category": category,
+            "topic": category,  # ✅ Add topic to match ChromaDB schema
             "department": department,
             "academic_year": academic_year,
             "upload_date": datetime.utcnow().isoformat()
@@ -830,6 +831,7 @@ class IngestionService:
         base_metadata = {
             "source": "direct_text_ingestion",
             "category": category,
+            "topic": category,  # ✅ Add topic to match ChromaDB schema
             "department": department,
             "academic_year": academic_year,
             "upload_date": datetime.utcnow().isoformat()
